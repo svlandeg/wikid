@@ -38,6 +38,18 @@ def chunked_readlines(
         s.write(l[-1])
 
 
+def determine_length(wikidata_file: Union[str, Path]) -> int:
+    # To be able to show progress, run through the file once up-front to count the lines.
+    # Assuming this is relatively quick and better than not knowing for hours how long the parsing will take.
+    total_lines = 0
+    with bz2.open(wikidata_file, mode="rb") as file:
+        with tqdm.tqdm(desc=f"Preprocessing Wikidata file '{wikidata_file.name}'", leave=True, miniters=1000) as pbar:
+            for _ in file:
+                total_lines += 1
+                pbar.update(1)
+    return total_lines
+
+
 def read_entities(
     wikidata_file: Union[str, Path],
     db_conn: sqlite3.Connection,

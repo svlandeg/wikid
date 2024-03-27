@@ -69,14 +69,17 @@ def parse(
     article_text_config: Optional[Dict[str, Any]] = None,
     alias_prior_prob_config: Optional[Dict[str, Any]] = None,
     use_filtered_dumps: bool = False,
+    preprocess_for_qtdm: bool = False,
 ) -> None:
     """Parses Wikipedia and Wikidata dumps. Writes parsing results to a database. Note that this takes hours.
+
     language (str): Language (e.g. 'en', 'es', ...) to assume for Wiki dump.
     db_conn (Optional[sqlite3.Connection]): Database connection.
     entity_config (Dict[str, Any]): Arguments to be passed on to wikidata.read_entities().
     article_text_config (Dict[str, Any]): Arguments to be passed on to wikipedia.read_text().
     alias_prior_prob_config (Dict[str, Any]): Arguments to be passed on to wikipedia.read_prior_probs().
     use_filtered_dumps (bool): Whether to use small, filtered Wiki dumps.
+    preprocess_for_qtdm (bool): Whether to preprocess the BZ2 archives to get more informative tqdm output.
     """
 
     _paths = _get_paths(language)
@@ -87,27 +90,46 @@ def parse(
     with open(Path(os.path.abspath(__file__)).parent / "ddl.sql", "r") as ddl_sql:
         db_conn.cursor().executescript(ddl_sql.read())
 
+    # WIKIDATA
+    wd_loc = _paths["wikidata_dump"] if not use_filtered_dumps else _paths["filtered_wikidata_dump"]
+
+    if preprocess_for_qtdm:
+        if not entity_config:
+            entity_config = {}
+        if not entity_config.get("limit"):
+            wd_len = wikidata.determine_length(wd_loc)
+            entity_config["limit"] = wd_len
+
     wikidata.read_entities(
-        _paths["wikidata_dump"]
-        if not use_filtered_dumps
-        else _paths["filtered_wikidata_dump"],
+        wd_loc,
         db_conn,
         **(entity_config if entity_config else {}),
         lang=language,
     )
 
+    # WIKIPEDIA
+    wp_loc = _paths["wikipedia_dump"] if not use_filtered_dumps else _paths["filtered_wikipedia_dump"]
+
+    if preprocess_for_qtdm:
+        if not alias_prior_prob_config:
+            alias_prior_prob_config = {}
+        if not article_text_config:
+            article_text_config = {}
+        if not alias_prior_prob_config.get("limit") or not article_text_config.get("limit"):
+            wp_len = wikipedia.determine_length(wp_loc)
+            if not alias_prior_prob_config.get("limit"):
+                alias_prior_prob_config["limit"] = wp_len
+            if not article_text_config.get("limit"):
+                article_text_config["limit"] = wp_len
+
     wikipedia.read_prior_probs(
-        _paths["wikipedia_dump"]
-        if not use_filtered_dumps
-        else _paths["filtered_wikipedia_dump"],
+        wp_loc,
         db_conn,
         **(alias_prior_prob_config if alias_prior_prob_config else {}),
     )
 
     wikipedia.read_texts(
-        _paths["wikipedia_dump"]
-        if not use_filtered_dumps
-        else _paths["filtered_wikipedia_dump"],
+        wp_loc,
         db_conn,
         **(article_text_config if article_text_config else {}),
     )

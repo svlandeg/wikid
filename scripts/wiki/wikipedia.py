@@ -91,10 +91,11 @@ def read_prior_probs(
     Read the XML wikipedia data and parse out intra-wiki links to estimate prior probabilities.
     The full file takes about 2-3h to parse 1100M lines. Writes prior information to DB.
     It works relatively fast because it runs line by line, irrelevant of which article the intrawiki is from.
+
     wikipedia_input_path (Union[str, Path]): Path to Wikipedia dump.
     batch_size (int): DB batch size.
     db_conn (sqlite3.Connection): Database connection.
-    n_article_limit (Optional[int]): Number of articles/entities to process.
+    limit (Optional[int]): Number of articles/entities to process.
     """
 
     read_id = False
@@ -256,6 +257,18 @@ def _capitalize_first(text: str) -> Optional[str]:
     return result
 
 
+def determine_length(wikipedia_input_path: Union[str, Path]) -> int:
+    # To be able to show progress, run through the file once up-front to count the lines.
+    # Assuming this is relatively quick and better than not knowing for hours how long the parsing will take.
+    total_lines = 0
+    with bz2.open(wikipedia_input_path, mode="rb") as file:
+        with tqdm.tqdm(desc=f"Preprocessing Wikipedia file '{wikipedia_input_path.name}'", leave=True, miniters=1000) as pbar:
+            for _ in file:
+                total_lines += 1
+                pbar.update(1)
+    return total_lines
+
+
 def read_texts(
     wikipedia_input_path: Union[str, Path],
     db_conn: sqlite3.Connection,
@@ -266,6 +279,7 @@ def read_texts(
 ) -> None:
     """
     Read the XML Wikipedia data to parse out clean article texts. Texts are stored in file.
+
     wikipedia_input_path (Union[str, Path]): Path to Wikipedia dump.
     db_conn (sqlite3.Connection): DB connection.
     limit (Optional[int]): Max. number of articles to process. If None, all are processed.

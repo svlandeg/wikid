@@ -13,6 +13,7 @@ vars:
   language: "en"
   vectors_model: "en_core_web_lg"
   filter: "True"
+  tqdm: "True"    # this runs through the dumps one additional time to provide a meaningful 'total' to tqdm
   n_process: 1    # set to -1 to set to multiprocessing.cpu_count() automatically
 
 directories: ["assets", "configs", "scripts", "output"]
@@ -45,7 +46,7 @@ commands:
   - name: parse
     help: "Parse Wiki dumps. This can take a long time if you're not using the filtered dumps!"
     script:
-      - "env PYTHONPATH=scripts python ./scripts/parse.py ${vars.language} ${vars.filter}"
+      - "env PYTHONPATH=scripts python ./scripts/parse.py ${vars.language} ${vars.filter} ${vars.tqdm}"
     outputs:
       - "output/${vars.language}/wiki.sqlite3"
 
