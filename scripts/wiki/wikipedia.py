@@ -421,6 +421,8 @@ def read_texts(
                     if titles:
                         article_title = titles[0].strip()
 
+                pbar.update(1)
+
     if pbar.n % batch_size != 0:
         write_to_db(article_records, article_texts_records)
 
